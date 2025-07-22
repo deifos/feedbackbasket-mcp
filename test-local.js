@@ -3,10 +3,10 @@
 import { spawn } from 'child_process';
 
 // Replace with your actual API key
-const API_KEY = process.env.API_KEY || 'your_actual_key_here';
+const API_KEY = process.env.API_KEY || 'fb_key_your_actual_key_here';
 
 const testMCP = async () => {
-  const mcp = spawn('node', ['dist/index.js', '--api-key', API_KEY, '--base-url', 'http://localhost:3000'], {
+  const mcp = spawn('node', ['dist/index.js', '--api-key', API_KEY], {
     stdio: ['pipe', 'pipe', 'pipe']
   });
 

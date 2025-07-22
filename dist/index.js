@@ -2,26 +2,38 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
-import { program } from 'commander';
 import { FeedbackBasketClient } from './client.js';
-// Parse command line arguments
-program
-    .option('--api-key <key>', 'FeedbackBasket API key')
-    .option('--base-url <url>', 'Base URL for FeedbackBasket API', 'https://feedbackbasket.com')
-    .parse();
-const options = program.opts();
+// Parse command line arguments manually (like Stripe does)
+function parseArgs(args) {
+    const options = {};
+    args.forEach((arg) => {
+        if (arg.startsWith('--')) {
+            const [key, value] = arg.slice(2).split('=');
+            if (key === 'api-key' && value) {
+                options.apiKey = value;
+            }
+            else if (key === 'base-url' && value) {
+                options.baseUrl = value;
+            }
+        }
+    });
+    return options;
+}
+const options = parseArgs(process.argv.slice(2));
 const apiKey = options.apiKey || process.env.FEEDBACKBASKET_API_KEY;
+const baseUrl = options.baseUrl || 'https://feedbackbasket.com';
 if (!apiKey) {
     console.error('Error: API key required.');
     console.error('Usage: Use --api-key option or set FEEDBACKBASKET_API_KEY environment variable');
     process.exit(1);
 }
 // Validate API key format
-if (!/^fb_key_[a-f0-9]{64}$/.test(apiKey)) {
-    console.error('Error: Invalid API key format. API keys should start with "fb_key_" followed by 64 hexadecimal characters.');
+if (!apiKey.startsWith('fb_key_')) {
+    console.error('Error: Invalid API key format. API keys should start with "fb_key_".');
     process.exit(1);
 }
-const client = new FeedbackBasketClient(apiKey, options.baseUrl);
+console.log('API key format accepted:', apiKey.substring(0, 20) + '...');
+const client = new FeedbackBasketClient(apiKey, baseUrl);
 // Create MCP server
 const server = new Server({
     name: 'feedbackbasket-mcp',
@@ -205,11 +217,11 @@ async function main() {
     try {
         const transport = new StdioServerTransport();
         await server.connect(transport);
-        // Server is now running and will handle requests via stdio
-        console.error('FeedbackBasket MCP server started successfully');
+        // We use console.error instead of console.log since console.log will output to stdio, which will confuse the MCP server
+        console.error('✅ FeedbackBasket MCP server started successfully');
     }
     catch (error) {
-        console.error('Failed to start MCP server:', error);
+        console.error('🚨 Failed to start MCP server:', error);
         process.exit(1);
     }
 }
@@ -222,9 +234,8 @@ process.on('SIGTERM', () => {
     console.error('Received SIGTERM, shutting down gracefully...');
     process.exit(0);
 });
-if (import.meta.url === `file://${process.argv[1]}`) {
-    main().catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-    });
-}
+// Only run if this file is the main module
+main().catch((error) => {
+    console.error('🚨 Fatal error:', error);
+    process.exit(1);
+});

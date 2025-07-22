@@ -1,11 +1,11 @@
 {
-  "name": "@feedbackbasket/mcp-server",
-  "version": "1.0.0",
+  "name": "feedbackbasket-mcp-server",
+  "version": "1.0.1",
   "description": "MCP server for FeedbackBasket project data access",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "@feedbackbasket/mcp-server": "dist/index.js"
+    "feedbackbasket-mcp-server": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -34,8 +34,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.4.0",
-    "axios": "^1.6.0",
-    "commander": "^11.0.0"
+    "axios": "^1.6.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
