@@ -3,52 +3,48 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { FeedbackBasketClient } from './client.js';
-// Parse command line arguments manually (like Stripe does)
 function parseArgs(args) {
-    const options = {};
-    args.forEach((arg) => {
-        if (arg.startsWith('--')) {
-            const [key, value] = arg.slice(2).split('=');
-            if (key === 'api-key' && value) {
-                options.apiKey = value;
-            }
-            else if (key === 'base-url' && value) {
-                options.baseUrl = value;
-            }
+    let apiKey;
+    let baseUrl;
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i] ?? '';
+        if (arg.startsWith('--api-key')) {
+            const eqIdx = arg.indexOf('=');
+            apiKey = eqIdx > 0 ? arg.slice(eqIdx + 1) : args[++i];
         }
-    });
-    return options;
+        else if (arg.startsWith('--base-url')) {
+            const eqIdx = arg.indexOf('=');
+            baseUrl = eqIdx > 0 ? arg.slice(eqIdx + 1) : args[++i];
+        }
+    }
+    return { apiKey, baseUrl };
 }
 const options = parseArgs(process.argv.slice(2));
 const apiKey = options.apiKey || process.env.FEEDBACKBASKET_API_KEY;
 const baseUrl = options.baseUrl || 'https://feedbackbasket.com';
 if (!apiKey) {
     console.error('Error: API key required.');
-    console.error('Usage: Use --api-key option or set FEEDBACKBASKET_API_KEY environment variable');
+    console.error('Usage: --api-key <key> or set FEEDBACKBASKET_API_KEY env var');
     process.exit(1);
 }
-// Validate API key format
 if (!apiKey.startsWith('fb_key_')) {
-    console.error('Error: Invalid API key format. API keys should start with "fb_key_".');
+    console.error('Error: Invalid API key format. Keys should start with "fb_key_".');
     process.exit(1);
 }
-console.log('API key format accepted:', apiKey.substring(0, 20) + '...');
 const client = new FeedbackBasketClient(apiKey, baseUrl);
-// Create MCP server
 const server = new Server({
     name: 'feedbackbasket-mcp',
-    version: '1.0.0',
+    version: '2.0.0',
     capabilities: {
         tools: {},
     },
 });
-// List available tools
 server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
     return {
         tools: [
             {
                 name: 'list_projects',
-                description: 'List all FeedbackBasket projects accessible by your API key with summary statistics',
+                description: 'List all FeedbackBasket projects accessible by your API key with summary statistics including feedback counts by status and category',
                 inputSchema: {
                     type: 'object',
                     properties: {},
@@ -57,7 +53,7 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
             },
             {
                 name: 'get_feedback',
-                description: 'Get feedback from your FeedbackBasket projects with filtering options',
+                description: 'Get feedback from your FeedbackBasket projects with filtering. Returns AI analysis (summary, priority, category, sentiment), page URL, browser info, and optional notes.',
                 inputSchema: {
                     type: 'object',
                     properties: {
@@ -67,12 +63,12 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
                         },
                         category: {
                             type: 'string',
-                            enum: ['BUG', 'FEATURE', 'REVIEW'],
+                            enum: ['BUG', 'FEATURE_REQUEST', 'IMPROVEMENT', 'QUESTION'],
                             description: 'Filter by feedback category',
                         },
                         status: {
                             type: 'string',
-                            enum: ['PENDING', 'REVIEWED', 'DONE'],
+                            enum: ['OPEN', 'UNDER_REVIEW', 'PLANNED', 'IN_PROGRESS', 'COMPLETE', 'CLOSED'],
                             description: 'Filter by feedback status',
                         },
                         sentiment: {
@@ -86,13 +82,18 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
                         },
                         limit: {
                             type: 'number',
-                            description: 'Maximum number of results to return (default: 20, max: 100)',
+                            description: 'Maximum number of results (default: 20, max: 100)',
                             minimum: 1,
                             maximum: 100,
                         },
+                        offset: {
+                            type: 'number',
+                            description: 'Offset for pagination (default: 0)',
+                            minimum: 0,
+                        },
                         includeNotes: {
                             type: 'boolean',
-                            description: 'Include internal notes in the response (default: false)',
+                            description: 'Include internal team notes (default: false)',
                         },
                     },
                     additionalProperties: false,
@@ -100,7 +101,7 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
             },
             {
                 name: 'get_bug_reports',
-                description: 'Get bug reports specifically from your FeedbackBasket projects',
+                description: 'Get bug reports from your FeedbackBasket projects with severity classification (high/medium/low based on sentiment) and statistics',
                 inputSchema: {
                     type: 'object',
                     properties: {
@@ -110,27 +111,32 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
                         },
                         status: {
                             type: 'string',
-                            enum: ['PENDING', 'REVIEWED', 'DONE'],
+                            enum: ['OPEN', 'UNDER_REVIEW', 'PLANNED', 'IN_PROGRESS', 'COMPLETE', 'CLOSED'],
                             description: 'Filter by bug status',
                         },
                         severity: {
                             type: 'string',
                             enum: ['high', 'medium', 'low'],
-                            description: 'Filter by computed severity (based on sentiment: negative=high, neutral=medium, positive=low)',
+                            description: 'Filter by severity (high=negative sentiment, medium=neutral, low=positive)',
                         },
                         search: {
                             type: 'string',
-                            description: 'Search bug report content for specific text',
+                            description: 'Search bug report content',
                         },
                         limit: {
                             type: 'number',
-                            description: 'Maximum number of results to return (default: 20, max: 100)',
+                            description: 'Maximum number of results (default: 20, max: 100)',
                             minimum: 1,
                             maximum: 100,
                         },
+                        offset: {
+                            type: 'number',
+                            description: 'Offset for pagination',
+                            minimum: 0,
+                        },
                         includeNotes: {
                             type: 'boolean',
-                            description: 'Include internal notes in the response (default: false)',
+                            description: 'Include internal team notes (default: false)',
                         },
                     },
                     additionalProperties: false,
@@ -138,21 +144,21 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
             },
             {
                 name: 'search_feedback',
-                description: 'Search for feedback across all accessible projects using text search',
+                description: 'Search for feedback across all accessible projects using text search. Useful for finding specific issues or topics.',
                 inputSchema: {
                     type: 'object',
                     properties: {
                         query: {
                             type: 'string',
-                            description: 'Search query to find in feedback content',
+                            description: 'Search text to find in feedback content',
                         },
                         projectId: {
                             type: 'string',
-                            description: 'Limit search to specific project',
+                            description: 'Limit search to a specific project',
                         },
                         category: {
                             type: 'string',
-                            enum: ['BUG', 'FEATURE', 'REVIEW'],
+                            enum: ['BUG', 'FEATURE_REQUEST', 'IMPROVEMENT', 'QUESTION'],
                             description: 'Filter search results by category',
                         },
                         limit: {
@@ -169,7 +175,6 @@ server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
         ],
     };
 });
-// Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     try {
@@ -184,17 +189,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 if (!args || typeof args !== 'object' || !('query' in args) || typeof args.query !== 'string') {
                     throw new Error('Search query is required');
                 }
-                const searchOptions = {};
-                if (typeof args.projectId === 'string') {
-                    searchOptions.projectId = args.projectId;
-                }
-                if (typeof args.category === 'string' && ['BUG', 'FEATURE', 'REVIEW'].includes(args.category)) {
-                    searchOptions.category = args.category;
-                }
-                if (typeof args.limit === 'number') {
-                    searchOptions.limit = args.limit;
-                }
-                return await client.searchFeedback(args.query, searchOptions);
+                const searchOpts = {};
+                if (typeof args.projectId === 'string')
+                    searchOpts.projectId = args.projectId;
+                if (typeof args.category === 'string')
+                    searchOpts.category = args.category;
+                if (typeof args.limit === 'number')
+                    searchOpts.limit = args.limit;
+                return await client.searchFeedback(args.query, searchOpts);
             default:
                 throw new Error(`Unknown tool: ${name}`);
         }
@@ -202,40 +204,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         return {
-            content: [
-                {
-                    type: 'text',
-                    text: `Error: ${errorMessage}`,
-                },
-            ],
+            content: [{ type: 'text', text: `Error: ${errorMessage}` }],
             isError: true,
         };
     }
 });
-// Start the server
 async function main() {
     try {
         const transport = new StdioServerTransport();
         await server.connect(transport);
-        // We use console.error instead of console.log since console.log will output to stdio, which will confuse the MCP server
-        console.error('✅ FeedbackBasket MCP server started successfully');
+        console.error('FeedbackBasket MCP server v2.0.0 started');
     }
     catch (error) {
-        console.error('🚨 Failed to start MCP server:', error);
+        console.error('Failed to start MCP server:', error);
         process.exit(1);
     }
 }
-// Handle graceful shutdown
-process.on('SIGINT', () => {
-    console.error('Received SIGINT, shutting down gracefully...');
-    process.exit(0);
-});
-process.on('SIGTERM', () => {
-    console.error('Received SIGTERM, shutting down gracefully...');
-    process.exit(0);
-});
-// Only run if this file is the main module
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
 main().catch((error) => {
-    console.error('🚨 Fatal error:', error);
+    console.error('Fatal error:', error);
     process.exit(1);
 });

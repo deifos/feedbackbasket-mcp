@@ -10,19 +10,16 @@ export class FeedbackBasketClient {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'FeedbackBasket-MCP/1.0.0',
+        'User-Agent': 'FeedbackBasket-MCP/2.0.0',
       },
-      timeout: 30000, // 30 second timeout
+      timeout: 30000,
     });
   }
 
-  /**
-   * List all projects accessible by the API key
-   */
   async listProjects(): Promise<{ content: Array<{ type: string; text: string }> }> {
     try {
       const response = await this.api.post<ProjectsResponse>('/projects', {});
-      
+
       const projects = response.data.projects;
       if (projects.length === 0) {
         return {
@@ -34,30 +31,23 @@ export class FeedbackBasketClient {
       }
 
       const projectList = projects.map(project => {
-        const totalFeedback = project.stats.totalFeedback;
-        const pendingCount = project.stats.byStatus.PENDING;
-        const bugCount = project.stats.byCategory.BUG;
-        
+        const openCount = project.byStatus['OPEN'] || 0;
+        const bugCount = project.byCategory['BUG'] || 0;
+
         return [
           `**${project.name}**`,
+          `  ID: ${project.id}`,
           `  URL: ${project.url}`,
-          `  Total Feedback: ${totalFeedback}`,
-          `  Pending: ${pendingCount} | Bugs: ${bugCount}`,
-          `  Created: ${new Date(project.createdAt).toLocaleDateString()}`,
+          `  Total Feedback: ${project.totalFeedback}`,
+          `  Open: ${openCount} | Bugs: ${bugCount}`,
           ''
         ].join('\n');
       }).join('\n');
 
-      const summary = [
-        `# FeedbackBasket Projects (${projects.length} total)\n`,
-        projectList,
-        `\n*API Key: ${response.data.apiKeyInfo.name} (${response.data.apiKeyInfo.usageCount} uses)*`
-      ].join('\n');
-
       return {
         content: [{
           type: 'text',
-          text: summary
+          text: `# FeedbackBasket Projects (${projects.length} total)\n\n${projectList}`
         }]
       };
     } catch (error) {
@@ -65,15 +55,13 @@ export class FeedbackBasketClient {
     }
   }
 
-  /**
-   * Get feedback for projects
-   */
   async getFeedback(params: {
     projectId?: string;
-    category?: 'BUG' | 'FEATURE' | 'REVIEW';
-    status?: 'PENDING' | 'REVIEWED' | 'DONE';
-    sentiment?: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+    category?: string;
+    status?: string;
+    sentiment?: string;
     limit?: number;
+    offset?: number;
     search?: string;
     includeNotes?: boolean;
   } = {}): Promise<{ content: Array<{ type: string; text: string }> }> {
@@ -87,10 +75,10 @@ export class FeedbackBasketClient {
       const feedback = response.data.feedback;
       if (feedback.length === 0) {
         const filters = Object.entries(params)
-          .filter(([_, value]) => value !== undefined)
+          .filter(([, value]) => value !== undefined)
           .map(([key, value]) => `${key}: ${value}`)
           .join(', ');
-        
+
         return {
           content: [{
             type: 'text',
@@ -102,32 +90,38 @@ export class FeedbackBasketClient {
       const feedbackList = feedback.map(item => {
         const category = item.category || 'UNCATEGORIZED';
         const sentiment = item.sentiment || 'UNKNOWN';
-        const confidenceText = item.categoryConfidence 
-          ? ` (${Math.round(item.categoryConfidence * 100)}% confidence)`
+        const priority = item.aiPriorityScore != null
+          ? ` | Priority: ${item.aiPriorityScore >= 70 ? 'HIGH' : item.aiPriorityScore >= 40 ? 'MEDIUM' : 'LOW'} (${item.aiPriorityScore}/100)`
           : '';
 
-        return [
-          `**${category}${confidenceText} | ${sentiment} | ${item.status}**`,
+        const lines = [
+          `**${category} | ${sentiment} | ${item.status}${priority}**`,
           `Project: ${item.project.name}`,
-          `Content: ${item.content.length > 100 ? item.content.substring(0, 100) + '...' : item.content}`,
-          item.email ? `Email: ${item.email}` : '',
-          item.notes && params.includeNotes ? `Notes: ${item.notes}` : '',
-          `Created: ${new Date(item.createdAt).toLocaleDateString()}`,
-          ''
-        ].filter(Boolean).join('\n');
+        ];
+
+        if (item.aiSummary) lines.push(`Summary: ${item.aiSummary}`);
+        lines.push(`Content: ${item.content.length > 150 ? item.content.substring(0, 150) + '...' : item.content}`);
+        if (item.email) lines.push(`Email: ${item.email}`);
+        if (item.pageUrl) lines.push(`Page: ${item.pageUrl}`);
+        if (item.browser || item.os) lines.push(`Browser: ${[item.browser, item.os, item.device].filter(Boolean).join(' | ')}`);
+        if (item.notes && item.notes.length > 0) {
+          lines.push(`Notes: ${item.notes.map(n => `[${n.author.name}] ${n.content}`).join('; ')}`);
+        }
+        lines.push(`Created: ${new Date(item.createdAt).toLocaleDateString()}`);
+        lines.push('');
+
+        return lines.join('\n');
       }).join('\n');
 
-      const summary = [
-        `# Feedback Results (${feedback.length} of ${response.data.pagination.totalCount})\n`,
-        feedbackList,
-        response.data.pagination.hasMore ? `\n*Showing first ${feedback.length} results. Use offset parameter to get more.*` : '',
-        `\n*API Key: ${response.data.apiKeyInfo.name}*`
-      ].join('\n');
-
+      const { pagination } = response.data;
       return {
         content: [{
           type: 'text',
-          text: summary
+          text: [
+            `# Feedback Results (${feedback.length} of ${pagination.totalCount})\n`,
+            feedbackList,
+            pagination.hasMore ? `\n*Showing ${feedback.length} results. Use offset: ${pagination.offset + pagination.limit} to get more.*` : '',
+          ].join('\n')
         }]
       };
     } catch (error) {
@@ -135,14 +129,12 @@ export class FeedbackBasketClient {
     }
   }
 
-  /**
-   * Get bug reports specifically
-   */
   async getBugReports(params: {
     projectId?: string;
-    status?: 'PENDING' | 'REVIEWED' | 'DONE';
+    status?: string;
     severity?: 'high' | 'medium' | 'low';
     limit?: number;
+    offset?: number;
     search?: string;
     includeNotes?: boolean;
   } = {}): Promise<{ content: Array<{ type: string; text: string }> }> {
@@ -156,10 +148,10 @@ export class FeedbackBasketClient {
       const bugReports = response.data.bugReports;
       if (bugReports.length === 0) {
         const filters = Object.entries(params)
-          .filter(([_, value]) => value !== undefined)
+          .filter(([, value]) => value !== undefined)
           .map(([key, value]) => `${key}: ${value}`)
           .join(', ');
-        
+
         return {
           content: [{
             type: 'text',
@@ -170,40 +162,47 @@ export class FeedbackBasketClient {
 
       const bugList = bugReports.map(bug => {
         const severityEmoji = bug.severity === 'high' ? '🔴' : bug.severity === 'medium' ? '🟡' : '🟢';
-        const statusEmoji = bug.status === 'PENDING' ? '⏳' : bug.status === 'REVIEWED' ? '👁️' : '✅';
-        
-        return [
+        const statusMap: Record<string, string> = {
+          OPEN: '⏳', UNDER_REVIEW: '👁️', PLANNED: '📋',
+          IN_PROGRESS: '🔨', COMPLETE: '✅', CLOSED: '🔒'
+        };
+        const statusEmoji = statusMap[bug.status] || '❓';
+
+        const lines = [
           `${severityEmoji} **${bug.severity.toUpperCase()} SEVERITY** ${statusEmoji} ${bug.status}`,
           `Project: ${bug.project.name}`,
-          `Bug: ${bug.content.length > 150 ? bug.content.substring(0, 150) + '...' : bug.content}`,
-          bug.email ? `Reported by: ${bug.email}` : '',
-          bug.notes && params.includeNotes ? `Notes: ${bug.notes}` : '',
-          `Reported: ${new Date(bug.createdAt).toLocaleDateString()}`,
-          ''
-        ].filter(Boolean).join('\n');
+        ];
+
+        if (bug.aiSummary) lines.push(`Summary: ${bug.aiSummary}`);
+        lines.push(`Bug: ${bug.content.length > 150 ? bug.content.substring(0, 150) + '...' : bug.content}`);
+        if (bug.email) lines.push(`Reported by: ${bug.email}`);
+        if (bug.pageUrl) lines.push(`Page: ${bug.pageUrl}`);
+        if (bug.browser || bug.os) lines.push(`Browser: ${[bug.browser, bug.os, bug.device].filter(Boolean).join(' | ')}`);
+        lines.push(`Reported: ${new Date(bug.createdAt).toLocaleDateString()}`);
+        lines.push('');
+
+        return lines.join('\n');
       }).join('\n');
 
       const stats = response.data.stats;
       const statsText = [
         `## Bug Statistics`,
-        `Total Bugs: ${stats.totalBugs}`,
+        `Total Bugs: ${stats.total}`,
         `🔴 High: ${stats.bySeverity.high} | 🟡 Medium: ${stats.bySeverity.medium} | 🟢 Low: ${stats.bySeverity.low}`,
-        `⏳ Pending: ${stats.byStatus.pending} | 👁️ Reviewed: ${stats.byStatus.reviewed} | ✅ Done: ${stats.byStatus.done}`,
+        `Open: ${stats.byStatus['OPEN'] || 0} | Under Review: ${stats.byStatus['UNDER_REVIEW'] || 0} | In Progress: ${stats.byStatus['IN_PROGRESS'] || 0} | Complete: ${stats.byStatus['COMPLETE'] || 0}`,
         ''
       ].join('\n');
 
-      const summary = [
-        `# Bug Reports (${bugReports.length} of ${response.data.pagination.totalCount})\n`,
-        statsText,
-        bugList,
-        response.data.pagination.hasMore ? `\n*Showing first ${bugReports.length} results. Use offset parameter to get more.*` : '',
-        `\n*API Key: ${response.data.apiKeyInfo.name}*`
-      ].join('\n');
-
+      const { pagination } = response.data;
       return {
         content: [{
           type: 'text',
-          text: summary
+          text: [
+            `# Bug Reports (${bugReports.length} of ${pagination.totalCount})\n`,
+            statsText,
+            bugList,
+            pagination.hasMore ? `\n*Showing ${bugReports.length} results. Use offset: ${pagination.offset + pagination.limit} to get more.*` : '',
+          ].join('\n')
         }]
       };
     } catch (error) {
@@ -211,12 +210,9 @@ export class FeedbackBasketClient {
     }
   }
 
-  /**
-   * Search feedback across all accessible projects
-   */
   async searchFeedback(query: string, options: {
     projectId?: string;
-    category?: 'BUG' | 'FEATURE' | 'REVIEW';
+    category?: string;
     limit?: number;
   } = {}): Promise<{ content: Array<{ type: string; text: string }> }> {
     return this.getFeedback({
@@ -230,19 +226,19 @@ export class FeedbackBasketClient {
   private handleError(message: string, error: unknown): Error {
     if (error instanceof AxiosError) {
       const status = error.response?.status;
-      const responseMessage = error.response?.data?.message || error.message;
-      
+      const responseMessage = error.response?.data?.error || error.response?.data?.message || error.message;
+
       if (status === 401) {
         return new Error(`Authentication failed: ${responseMessage}. Check your API key.`);
       } else if (status === 403) {
         return new Error(`Access denied: ${responseMessage}. Check your API key permissions.`);
       } else if (status === 429) {
-        return new Error(`Rate limit exceeded: ${responseMessage}. Please try again later.`);
+        return new Error(`Rate limit exceeded. Please try again later.`);
       } else {
         return new Error(`${message}: ${responseMessage} (HTTP ${status})`);
       }
     }
-    
+
     return new Error(`${message}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

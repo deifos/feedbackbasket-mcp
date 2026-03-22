@@ -1,2 +1,2 @@
-// Shared types for the MCP server based on actual database schema
+// Shared types for the MCP server — aligned with FeedbackBasket v3
 export {};
