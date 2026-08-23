@@ -37,9 +37,9 @@
     "url": "https://github.com/deifos/feedbackbasket-mcp/issues"
   },
   "dependencies": {
-    "feedbackbasket-agent-contract": "3.0.0",
     "@modelcontextprotocol/sdk": "1.30.0",
-    "axios": "^1.19.0"
+    "axios": "^1.19.0",
+    "feedbackbasket-agent-contract": "3.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
