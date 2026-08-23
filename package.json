@@ -1,6 +1,6 @@
 {
   "name": "feedbackbasket-mcp-server",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "MCP server for FeedbackBasket project data access",
   "type": "module",
   "main": "dist/index.js",
@@ -11,7 +11,11 @@
     "build": "node node_modules/typescript/bin/tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "prepublishOnly": "npm run build"
+    "test": "tsx --test tests/*.test.ts",
+    "check:parity": "tsx scripts/check-parity.ts",
+    "docs:generate": "tsx scripts/generate-capabilities.ts",
+    "docs:check": "tsx scripts/generate-capabilities.ts --check",
+    "prepublishOnly": "npm run check:parity && npm run docs:check && npm test && npm run build"
   },
   "keywords": [
     "mcp",
@@ -33,16 +37,18 @@
     "url": "https://github.com/deifos/feedbackbasket-mcp/issues"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.4.0",
-    "axios": "^1.6.0"
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "axios": "^1.19.0",
+    "feedbackbasket-agent-contract": "3.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0"
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
   },
   "files": [
     "dist/**/*",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ]
 }

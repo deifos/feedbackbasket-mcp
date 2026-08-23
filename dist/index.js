@@ -1,228 +1,90 @@
 #!/usr/bin/env node
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import { AGENT_SURFACE_VERSION, PRODUCT_OPERATIONS, getProductOperationByTool, validateOperationInput, } from 'feedbackbasket-agent-contract';
 import { FeedbackBasketClient } from './client.js';
-function parseArgs(args) {
-    let apiKey;
-    let baseUrl;
-    for (let i = 0; i < args.length; i++) {
-        const arg = args[i] ?? '';
-        if (arg.startsWith('--api-key')) {
-            const eqIdx = arg.indexOf('=');
-            apiKey = eqIdx > 0 ? arg.slice(eqIdx + 1) : args[++i];
-        }
-        else if (arg.startsWith('--base-url')) {
-            const eqIdx = arg.indexOf('=');
-            baseUrl = eqIdx > 0 ? arg.slice(eqIdx + 1) : args[++i];
-        }
-    }
-    return { apiKey, baseUrl };
-}
-const options = parseArgs(process.argv.slice(2));
-const apiKey = options.apiKey || process.env.FEEDBACKBASKET_API_KEY;
-const baseUrl = options.baseUrl || 'https://feedbackbasket.com';
-if (!apiKey) {
-    console.error('Error: API key required.');
-    console.error('Usage: --api-key <key> or set FEEDBACKBASKET_API_KEY env var');
-    process.exit(1);
-}
-if (!apiKey.startsWith('fb_key_')) {
-    console.error('Error: Invalid API key format. Keys should start with "fb_key_".');
-    process.exit(1);
-}
-const client = new FeedbackBasketClient(apiKey, baseUrl);
-const server = new Server({
-    name: 'feedbackbasket-mcp',
-    version: '2.0.0',
-    capabilities: {
-        tools: {},
+export const MCP_TOOLS = PRODUCT_OPERATIONS.map((operation) => ({
+    name: operation.mcp.name,
+    title: operation.mcp.title,
+    description: operation.mcp.description,
+    inputSchema: operation.mcp.inputSchema,
+    outputSchema: operation.mcp.outputSchema,
+    annotations: {
+        readOnlyHint: operation.risk.readOnly,
+        destructiveHint: operation.risk.destructive,
+        idempotentHint: operation.risk.idempotent,
+        openWorldHint: operation.risk.openWorld,
     },
-});
-server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
-    return {
-        tools: [
-            {
-                name: 'list_projects',
-                description: 'List all FeedbackBasket projects accessible by your API key with summary statistics including feedback counts by status and category',
-                inputSchema: {
-                    type: 'object',
-                    properties: {},
-                    additionalProperties: false,
-                },
-            },
-            {
-                name: 'get_feedback',
-                description: 'Get feedback from your FeedbackBasket projects with filtering. Returns AI analysis (summary, priority, category, sentiment), page URL, browser info, and optional notes.',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        projectId: {
-                            type: 'string',
-                            description: 'Filter by specific project ID',
-                        },
-                        category: {
-                            type: 'string',
-                            enum: ['BUG', 'FEATURE_REQUEST', 'IMPROVEMENT', 'QUESTION'],
-                            description: 'Filter by feedback category',
-                        },
-                        status: {
-                            type: 'string',
-                            enum: ['OPEN', 'UNDER_REVIEW', 'PLANNED', 'IN_PROGRESS', 'COMPLETE', 'CLOSED'],
-                            description: 'Filter by feedback status',
-                        },
-                        sentiment: {
-                            type: 'string',
-                            enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
-                            description: 'Filter by sentiment analysis result',
-                        },
-                        search: {
-                            type: 'string',
-                            description: 'Search feedback content for specific text',
-                        },
-                        limit: {
-                            type: 'number',
-                            description: 'Maximum number of results (default: 20, max: 100)',
-                            minimum: 1,
-                            maximum: 100,
-                        },
-                        offset: {
-                            type: 'number',
-                            description: 'Offset for pagination (default: 0)',
-                            minimum: 0,
-                        },
-                        includeNotes: {
-                            type: 'boolean',
-                            description: 'Include internal team notes (default: false)',
-                        },
-                    },
-                    additionalProperties: false,
-                },
-            },
-            {
-                name: 'get_bug_reports',
-                description: 'Get bug reports from your FeedbackBasket projects with severity classification (high/medium/low based on sentiment) and statistics',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        projectId: {
-                            type: 'string',
-                            description: 'Filter by specific project ID',
-                        },
-                        status: {
-                            type: 'string',
-                            enum: ['OPEN', 'UNDER_REVIEW', 'PLANNED', 'IN_PROGRESS', 'COMPLETE', 'CLOSED'],
-                            description: 'Filter by bug status',
-                        },
-                        severity: {
-                            type: 'string',
-                            enum: ['high', 'medium', 'low'],
-                            description: 'Filter by severity (high=negative sentiment, medium=neutral, low=positive)',
-                        },
-                        search: {
-                            type: 'string',
-                            description: 'Search bug report content',
-                        },
-                        limit: {
-                            type: 'number',
-                            description: 'Maximum number of results (default: 20, max: 100)',
-                            minimum: 1,
-                            maximum: 100,
-                        },
-                        offset: {
-                            type: 'number',
-                            description: 'Offset for pagination',
-                            minimum: 0,
-                        },
-                        includeNotes: {
-                            type: 'boolean',
-                            description: 'Include internal team notes (default: false)',
-                        },
-                    },
-                    additionalProperties: false,
-                },
-            },
-            {
-                name: 'search_feedback',
-                description: 'Search for feedback across all accessible projects using text search. Useful for finding specific issues or topics.',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        query: {
-                            type: 'string',
-                            description: 'Search text to find in feedback content',
-                        },
-                        projectId: {
-                            type: 'string',
-                            description: 'Limit search to a specific project',
-                        },
-                        category: {
-                            type: 'string',
-                            enum: ['BUG', 'FEATURE_REQUEST', 'IMPROVEMENT', 'QUESTION'],
-                            description: 'Filter search results by category',
-                        },
-                        limit: {
-                            type: 'number',
-                            description: 'Maximum number of results (default: 10)',
-                            minimum: 1,
-                            maximum: 50,
-                        },
-                    },
-                    required: ['query'],
-                    additionalProperties: false,
-                },
-            },
-        ],
-    };
-});
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-    try {
-        switch (name) {
-            case 'list_projects':
-                return await client.listProjects();
-            case 'get_feedback':
-                return await client.getFeedback(args || {});
-            case 'get_bug_reports':
-                return await client.getBugReports(args || {});
-            case 'search_feedback':
-                if (!args || typeof args !== 'object' || !('query' in args) || typeof args.query !== 'string') {
-                    throw new Error('Search query is required');
-                }
-                const searchOpts = {};
-                if (typeof args.projectId === 'string')
-                    searchOpts.projectId = args.projectId;
-                if (typeof args.category === 'string')
-                    searchOpts.category = args.category;
-                if (typeof args.limit === 'number')
-                    searchOpts.limit = args.limit;
-                return await client.searchFeedback(args.query, searchOpts);
-            default:
-                throw new Error(`Unknown tool: ${name}`);
+}));
+export function parseArgs(args) {
+    const result = {};
+    for (let index = 0; index < args.length; index += 1) {
+        const arg = args[index] ?? '';
+        if (arg === '--api-key') {
+            const value = args[++index];
+            if (value !== undefined)
+                result.apiKey = value;
         }
+        else if (arg.startsWith('--api-key='))
+            result.apiKey = arg.slice('--api-key='.length);
+        else if (arg === '--base-url') {
+            const value = args[++index];
+            if (value !== undefined)
+                result.baseUrl = value;
+        }
+        else if (arg.startsWith('--base-url='))
+            result.baseUrl = arg.slice('--base-url='.length);
     }
-    catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        return {
-            content: [{ type: 'text', text: `Error: ${errorMessage}` }],
-            isError: true,
-        };
-    }
-});
-async function main() {
+    return result;
+}
+export async function dispatchTool(client, name, args) {
+    const operation = getProductOperationByTool(name);
+    if (!operation)
+        return errorResult(`Unknown tool: ${name}`);
+    const input = args && typeof args === 'object' && !Array.isArray(args)
+        ? args
+        : {};
+    const validation = validateOperationInput(operation, input);
+    if (!validation.valid)
+        return errorResult(validation.message);
     try {
-        const transport = new StdioServerTransport();
-        await server.connect(transport);
-        console.error('FeedbackBasket MCP server v2.0.0 started');
+        return await client.execute(operation.id, input);
     }
     catch (error) {
-        console.error('Failed to start MCP server:', error);
-        process.exit(1);
+        return errorResult(error instanceof Error ? error.message : 'FeedbackBasket request failed.');
     }
 }
-process.on('SIGINT', () => process.exit(0));
-process.on('SIGTERM', () => process.exit(0));
-main().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-});
+function errorResult(message) {
+    const structuredContent = { error: message };
+    return {
+        structuredContent,
+        content: [{ type: 'text', text: JSON.stringify(structuredContent) }],
+        isError: true,
+    };
+}
+export function createServer(client) {
+    const server = new Server({ name: 'feedbackbasket-mcp', version: AGENT_SURFACE_VERSION }, { capabilities: { tools: {} } });
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: MCP_TOOLS }));
+    server.setRequestHandler(CallToolRequestSchema, async (request) => dispatchTool(client, request.params.name, request.params.arguments));
+    return server;
+}
+async function main() {
+    const options = parseArgs(process.argv.slice(2));
+    const apiKey = options.apiKey || process.env.FEEDBACKBASKET_API_KEY;
+    if (!apiKey)
+        throw new Error('API key required. Use --api-key or FEEDBACKBASKET_API_KEY.');
+    if (!/^fb_key_[a-f0-9]{64}$/.test(apiKey))
+        throw new Error('Invalid API key format.');
+    const server = createServer(new FeedbackBasketClient(apiKey, options.baseUrl));
+    await server.connect(new StdioServerTransport());
+    console.error(`FeedbackBasket MCP server v${AGENT_SURFACE_VERSION} started`);
+}
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+    main().catch((error) => {
+        console.error(error instanceof Error ? error.message : 'MCP server failed.');
+        process.exit(1);
+    });
+}
