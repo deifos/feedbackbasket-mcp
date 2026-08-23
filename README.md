@@ -1,10 +1,12 @@
 # FeedbackBasket MCP Server
 
-Model Context Protocol (MCP) server for [FeedbackBasket](https://feedbackbasket.com). Version `3.0.0` provides the same 31 product operations as the FeedbackBasket CLI and live Streamable HTTP server.
+Model Context Protocol (MCP) server for [FeedbackBasket](https://feedbackbasket.com). Version `3.1.0` provides the same 31 product operations as the FeedbackBasket CLI and live Streamable HTTP server.
 
 Use a read key for queries. Use a full key for approved writes. A project-restricted key can access only its allowed projects. Project creation and team operations need an unrestricted full key. Each high-impact operation needs `confirm: true`.
 
-You can use this stdio package or connect directly to `https://feedbackbasket.com/.well-known/mcp` with Streamable HTTP. Both transports use the same MCP key and contract.
+Use this STDIO package with an MCP key for local processes, CI, servers, and unattended automation. For remote Streamable HTTP, add `https://feedbackbasket.com/.well-known/mcp` to the host, save it, and select **Authenticate**. Sign in, select an organization, select Read or Full access, select Selected projects or All projects, and select **Allow**. Browser OAuth is the recommended remote setup. It is not used by STDIO.
+
+Read is selected by default. Full needs an explicit choice and an owner or administrator role. Selected projects limits access to the approved projects. All projects includes current and future projects and is required for project creation and team operations. Existing unrestricted MCP keys remain compatible. New browser grants never receive All-projects access silently. Never put an access token, refresh token, MCP key, or CLI token in source, prompts, logs, generated configuration, or final output.
 
 ## Installation & Setup
 
@@ -26,7 +28,7 @@ Set `FEEDBACKBASKET_API_KEY` in the environment that starts Claude Code. Then
 add the server without putting the key in the command or shell history:
 
 ```bash
-claude mcp add feedbackbasket -- npx -y feedbackbasket-mcp-server@3.0.0
+claude mcp add feedbackbasket -- npx -y feedbackbasket-mcp-server@3.1.0
 ```
 
 On native Windows, use `cmd /c npx` as the command because Claude Code cannot
@@ -41,7 +43,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
   "mcpServers": {
     "feedbackbasket": {
       "command": "npx",
-      "args": ["-y", "feedbackbasket-mcp-server@3.0.0"],
+      "args": ["-y", "feedbackbasket-mcp-server@3.1.0"],
       "env": { "FEEDBACKBASKET_API_KEY": "${FEEDBACKBASKET_API_KEY}" }
     }
   }
@@ -57,7 +59,7 @@ Add to your MCP config (`.cursor/mcp.json` or equivalent):
   "mcpServers": {
     "feedbackbasket": {
       "command": "npx",
-      "args": ["-y", "feedbackbasket-mcp-server@3.0.0"],
+      "args": ["-y", "feedbackbasket-mcp-server@3.1.0"],
       "env": { "FEEDBACKBASKET_API_KEY": "${FEEDBACKBASKET_API_KEY}" }
     }
   }
@@ -74,7 +76,7 @@ the key out of process listings and saved command history.
   "mcpServers": {
     "feedbackbasket": {
       "command": "npx",
-      "args": ["-y", "feedbackbasket-mcp-server@latest"],
+      "args": ["-y", "feedbackbasket-mcp-server@3.1.0"],
       "env": {
         "FEEDBACKBASKET_API_KEY": "${FEEDBACKBASKET_API_KEY}"
       }
@@ -88,25 +90,30 @@ the key out of process listings and saved command history.
 Once configured, ask your AI assistant:
 
 ### Project Overview
+
 - "Show me all my FeedbackBasket projects"
 - "How much feedback does each project have?"
 
 ### Bug Reports
+
 - "Show me all open bug reports"
 - "Get high severity bugs that haven't been addressed"
 - "Find bugs related to authentication"
 
 ### Feedback Analysis
+
 - "Show me negative feedback from my project"
 - "Get all feature requests"
 - "What are users asking for the most?"
 - "Show me high priority feedback"
 
 ### Search
+
 - "Search for feedback about 'payment issues'"
 - "Find feedback mentioning 'mobile'"
 
 ### Agentic Workflows
+
 - "Look at my bug reports and suggest which ones to fix first"
 - "Summarize this week's feedback trends"
 - "Are users happy with the new checkout flow?"
@@ -114,7 +121,7 @@ Once configured, ask your AI assistant:
 <!-- BEGIN GENERATED AGENT CAPABILITIES -->
 ## Agent capability contract
 
-Agent surface version: `3.0.0`. The CLI and both MCP transports implement the same 31 product operations.
+Agent surface version: `3.1.0`. The CLI and both MCP transports implement the same 31 product operations.
 
 | Product operation | CLI command | MCP tool | Required access | Confirm |
 | --- | --- | --- | --- | --- |
@@ -163,15 +170,18 @@ Agent surface version: `3.0.0`. The CLI and both MCP transports implement the sa
 ## Troubleshooting
 
 ### "Invalid or missing API key"
+
 - Check that your API key starts with `fb_key_`
 - Ensure the key is still active in Settings > MCP API Keys
 - Verify the key has access to at least one project
 
 ### "No projects found"
+
 - Make sure your API key has been granted access to projects
 - Check that you have projects in your FeedbackBasket account
 
 ### Connection Issues
+
 - Ensure Node.js 18+ is installed
 - Try clearing npx cache: `npx clear-npx-cache`
 - For local development, add `--base-url http://localhost:3000`
@@ -179,6 +189,7 @@ Agent surface version: `3.0.0`. The CLI and both MCP transports implement the sa
 ## API Key Management
 
 Visit [feedbackbasket.com/dashboard/settings](https://feedbackbasket.com/dashboard/settings) to:
+
 - Generate new API keys
 - Manage project access
 - View usage statistics
