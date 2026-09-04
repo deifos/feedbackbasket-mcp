@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.2.0] - 2026-09-04
+
+### Added
+
+- Added structured close reasons and optional internal close notes to feedback tools.
+
+### Changed
+
+- Closing feedback now requires a close reason. The `OTHER` reason also requires a close note.
+- The package and shared contract now report version `3.2.0`.
+
 ## [3.1.0] - 2026-08-22
 
 ### Added

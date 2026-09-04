@@ -1,6 +1,6 @@
 # FeedbackBasket MCP Server
 
-Model Context Protocol (MCP) server for [FeedbackBasket](https://feedbackbasket.com). Version `3.1.0` provides the same 31 product operations as the FeedbackBasket CLI and live Streamable HTTP server.
+Model Context Protocol (MCP) server for [FeedbackBasket](https://feedbackbasket.com). Version `3.2.0` provides the same 31 product operations as the FeedbackBasket CLI and live Streamable HTTP server.
 
 Use a read key for queries. Use a full key for approved writes. A project-restricted key can access only its allowed projects. Project creation and team operations need an unrestricted full key. Each high-impact operation needs `confirm: true`.
 
@@ -28,7 +28,7 @@ Set `FEEDBACKBASKET_API_KEY` in the environment that starts Claude Code. Then
 add the server without putting the key in the command or shell history:
 
 ```bash
-claude mcp add feedbackbasket -- npx -y feedbackbasket-mcp-server@3.1.0
+claude mcp add feedbackbasket -- npx -y feedbackbasket-mcp-server@3.2.0
 ```
 
 On native Windows, use `cmd /c npx` as the command because Claude Code cannot
@@ -43,7 +43,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
   "mcpServers": {
     "feedbackbasket": {
       "command": "npx",
-      "args": ["-y", "feedbackbasket-mcp-server@3.1.0"],
+      "args": ["-y", "feedbackbasket-mcp-server@3.2.0"],
       "env": { "FEEDBACKBASKET_API_KEY": "${FEEDBACKBASKET_API_KEY}" }
     }
   }
@@ -59,7 +59,7 @@ Add to your MCP config (`.cursor/mcp.json` or equivalent):
   "mcpServers": {
     "feedbackbasket": {
       "command": "npx",
-      "args": ["-y", "feedbackbasket-mcp-server@3.1.0"],
+      "args": ["-y", "feedbackbasket-mcp-server@3.2.0"],
       "env": { "FEEDBACKBASKET_API_KEY": "${FEEDBACKBASKET_API_KEY}" }
     }
   }
@@ -76,7 +76,7 @@ the key out of process listings and saved command history.
   "mcpServers": {
     "feedbackbasket": {
       "command": "npx",
-      "args": ["-y", "feedbackbasket-mcp-server@3.1.0"],
+      "args": ["-y", "feedbackbasket-mcp-server@3.2.0"],
       "env": {
         "FEEDBACKBASKET_API_KEY": "${FEEDBACKBASKET_API_KEY}"
       }
@@ -121,7 +121,7 @@ Once configured, ask your AI assistant:
 <!-- BEGIN GENERATED AGENT CAPABILITIES -->
 ## Agent capability contract
 
-Agent surface version: `3.1.0`. The CLI and both MCP transports implement the same 31 product operations.
+Agent surface version: `3.2.0`. The CLI and both MCP transports implement the same 31 product operations.
 
 | Product operation | CLI command | MCP tool | Required access | Confirm |
 | --- | --- | --- | --- | --- |

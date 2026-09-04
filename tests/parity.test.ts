@@ -11,8 +11,8 @@ import {
 } from "../src/client.js";
 import { verifyMcpParity } from "../scripts/check-parity.js";
 
-test("stdio MCP exposes the deterministic 3.1.0 contract", () => {
-  assert.equal(AGENT_SURFACE_VERSION, "3.1.0");
+test("stdio MCP exposes the deterministic 3.2.0 contract", () => {
+  assert.equal(AGENT_SURFACE_VERSION, "3.2.0");
   assert.equal(MCP_TOOLS.length, 31);
   assert.deepEqual(
     MCP_TOOLS.map(({ name }) => name),
@@ -121,6 +121,26 @@ test("stdio MCP sends mobile disclosure options in the query string", () => {
   );
 });
 
+test("stdio MCP forwards structured feedback closure data", () => {
+  assert.deepEqual(
+    createOperationRequest("feedback.update", {
+      feedbackId: "feedback-id",
+      status: "CLOSED",
+      closeReason: "NOT_PLANNED",
+      closeNote: "Outside the current roadmap.",
+    }),
+    {
+      method: "PATCH",
+      url: "/api/v1/feedback/feedback-id",
+      data: {
+        status: "CLOSED",
+        closeReason: "NOT_PLANNED",
+        closeNote: "Outside the current roadmap.",
+      },
+    },
+  );
+});
+
 test("stdio MCP maps every contract input to its declared REST request", () => {
   for (const operation of PRODUCT_OPERATIONS) {
     const properties = operation.mcp.inputSchema.properties as Record<
@@ -157,7 +177,7 @@ test("the prepublish check rejects version and tool drift", () => {
   assert.throws(
     () =>
       verifyMcpParity(
-        "3.1.0",
+        "3.2.0",
         PRODUCT_OPERATIONS.slice(0, -1).map(({ mcp }) => mcp.name),
       ),
     /MCP tool count differs/,
