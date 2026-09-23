@@ -1,5 +1,5 @@
 {
-  "version": "3.2.0",
+  "version": "3.3.0",
   "toolNames": [
     "list_projects",
     "get_project",
@@ -31,6 +31,8 @@
     "export_waitlist",
     "list_team_members",
     "update_team_member_role",
+    "update_team_member_access",
+    "invite_team_members",
     "remove_team_member"
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "feedbackbasket-mcp-server",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "MCP server for FeedbackBasket project data access",
   "type": "module",
   "main": "dist/index.js",
@@ -39,7 +39,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "axios": "^1.19.0",
-    "feedbackbasket-agent-contract": "3.2.0"
+    "feedbackbasket-agent-contract": "3.3.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

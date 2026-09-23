@@ -11,9 +11,9 @@ import {
 } from "../src/client.js";
 import { verifyMcpParity } from "../scripts/check-parity.js";
 
-test("stdio MCP exposes the deterministic 3.2.0 contract", () => {
-  assert.equal(AGENT_SURFACE_VERSION, "3.2.0");
-  assert.equal(MCP_TOOLS.length, 31);
+test("stdio MCP exposes the deterministic 3.3.0 contract", () => {
+  assert.equal(AGENT_SURFACE_VERSION, "3.3.0");
+  assert.equal(MCP_TOOLS.length, 33);
   assert.deepEqual(
     MCP_TOOLS.map(({ name }) => name),
     PRODUCT_OPERATIONS.map(({ mcp }) => mcp.name),
@@ -36,7 +36,7 @@ test("stdio MCP keeps command-line setup compatibility", () => {
   );
 });
 
-test("stdio MCP dispatches all 31 operation IDs", async () => {
+test("stdio MCP dispatches all 33 operation IDs", async () => {
   const calls: string[] = [];
   const client: Pick<FeedbackBasketClient, "execute"> = {
     async execute(operationId) {
@@ -75,7 +75,7 @@ test("stdio MCP dispatches all 31 operation IDs", async () => {
   );
 });
 
-test("stdio MCP confirmation prevents all eight high-impact calls", async () => {
+test("stdio MCP confirmation prevents all high-impact calls", async () => {
   let calls = 0;
   const client: Pick<FeedbackBasketClient, "execute"> = {
     async execute() {
@@ -177,7 +177,7 @@ test("the prepublish check rejects version and tool drift", () => {
   assert.throws(
     () =>
       verifyMcpParity(
-        "3.2.0",
+        "3.3.0",
         PRODUCT_OPERATIONS.slice(0, -1).map(({ mcp }) => mcp.name),
       ),
     /MCP tool count differs/,
