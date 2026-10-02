@@ -1,5 +1,5 @@
 {
-  "version": "3.3.0",
+  "version": "3.4.0",
   "toolNames": [
     "list_projects",
     "get_project",
@@ -33,6 +33,15 @@
     "update_team_member_role",
     "update_team_member_access",
     "invite_team_members",
-    "remove_team_member"
+    "remove_team_member",
+    "list_themes",
+    "get_theme",
+    "get_github_status",
+    "draft_github_issue",
+    "create_github_issue",
+    "list_github_issue_drafts",
+    "approve_github_issue_draft",
+    "reject_github_issue_draft",
+    "update_github_automation"
   ]
 }

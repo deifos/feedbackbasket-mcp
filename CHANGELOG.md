@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.4.0] - 2026-10-04
+
+### Added
+
+- Added `list_themes` and `get_theme` for feedback that several people reported.
+- Added `get_github_status`, `draft_github_issue`, and `create_github_issue` to turn a theme or feedback item into a GitHub issue.
+- Added `list_github_issue_drafts`, `approve_github_issue_draft`, and `reject_github_issue_draft` to review issues proposed by automation.
+- Added `update_github_automation` to control automatic issue creation and closing the loop.
+
+### Changed
+
+- The CLI and both MCP transports use the same 42-operation contract.
+- Creating or approving a GitHub issue and changing automation require explicit confirmation.
+
 ## [3.3.0] - 2026-09-23
 
 ### Added
