@@ -1,3 +1,7 @@
+# 3.5.0 — 2026-10-03
+
+- Updated the shared agent contract to 3.5.0. Remote HTTP MCP adds feedback events under an explicit transport parity exemption.
+
 # Changelog
 
 ## [3.4.0] - 2026-10-04
