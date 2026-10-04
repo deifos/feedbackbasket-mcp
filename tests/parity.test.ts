@@ -11,8 +11,8 @@ import {
 } from "../src/client.js";
 import { verifyMcpParity } from "../scripts/check-parity.js";
 
-test("stdio MCP exposes the deterministic 3.5.0 contract", () => {
-  assert.equal(AGENT_SURFACE_VERSION, "3.5.0");
+test("stdio MCP exposes the deterministic 3.5.1 contract", () => {
+  assert.equal(AGENT_SURFACE_VERSION, "3.5.1");
   assert.equal(MCP_TOOLS.length, 42);
   assert.deepEqual(
     MCP_TOOLS.map(({ name }) => name),
@@ -177,7 +177,7 @@ test("the prepublish check rejects version and tool drift", () => {
   assert.throws(
     () =>
       verifyMcpParity(
-        "3.5.0",
+        "3.5.1",
         PRODUCT_OPERATIONS.slice(0, -1).map(({ mcp }) => mcp.name),
       ),
     /MCP tool count differs/,
