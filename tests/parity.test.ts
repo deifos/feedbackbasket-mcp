@@ -11,9 +11,9 @@ import {
 } from "../src/client.js";
 import { verifyMcpParity } from "../scripts/check-parity.js";
 
-test("stdio MCP exposes the deterministic 3.5.1 contract", () => {
-  assert.equal(AGENT_SURFACE_VERSION, "3.5.1");
-  assert.equal(MCP_TOOLS.length, 42);
+test("stdio MCP exposes the deterministic 3.10.0 contract", () => {
+  assert.equal(AGENT_SURFACE_VERSION, "3.10.0");
+  assert.equal(MCP_TOOLS.length, 61);
   assert.deepEqual(
     MCP_TOOLS.map(({ name }) => name),
     PRODUCT_OPERATIONS.map(({ mcp }) => mcp.name),
@@ -36,7 +36,7 @@ test("stdio MCP keeps command-line setup compatibility", () => {
   );
 });
 
-test("stdio MCP dispatches all 42 operation IDs", async () => {
+test("stdio MCP dispatches all 61 operation IDs", async () => {
   const calls: string[] = [];
   const client: Pick<FeedbackBasketClient, "execute"> = {
     async execute(operationId) {
@@ -141,6 +141,14 @@ test("stdio MCP forwards structured feedback closure data", () => {
   );
 });
 
+test("stdio MCP preserves explicit publication and withdrawal", () => {
+  for (const isPublished of [true, false]) {
+    assert.deepEqual(createOperationRequest("feedback.update", { feedbackId: "feedback-id", isPublished }), {
+      method: "PATCH", url: "/api/v1/feedback/feedback-id", data: { isPublished },
+    });
+  }
+});
+
 test("stdio MCP maps every contract input to its declared REST request", () => {
   for (const operation of PRODUCT_OPERATIONS) {
     const properties = operation.mcp.inputSchema.properties as Record<
@@ -177,7 +185,7 @@ test("the prepublish check rejects version and tool drift", () => {
   assert.throws(
     () =>
       verifyMcpParity(
-        "3.5.1",
+        "3.10.0",
         PRODUCT_OPERATIONS.slice(0, -1).map(({ mcp }) => mcp.name),
       ),
     /MCP tool count differs/,
@@ -247,3 +255,13 @@ function sampleValue(
         : `${name}-value`;
   }
 }
+
+
+test('community requests preserve move fields and vote pagination', () => {
+  assert.deepEqual(createOperationRequest('roadmap.updateCard', { projectId: 'p', cardId: 'c', status: 'DONE', position: 0, notes: null }), {
+    method: 'PATCH', url: '/api/v1/projects/p/roadmap/c', data: { status: 'DONE', position: 0, notes: null },
+  });
+  assert.deepEqual(createOperationRequest('feedback.listVotes', { feedbackId: 'f', page: 2, limit: 1 }), {
+    method: 'GET', url: '/api/v1/feedback/f/votes', params: { page: 2, limit: 1 },
+  });
+});
